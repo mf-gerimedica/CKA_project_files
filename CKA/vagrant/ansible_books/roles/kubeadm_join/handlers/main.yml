@@ -1,0 +1,5 @@
+---
+- name: systemctl restart docker
+  service:
+    name: docker
+    state: restarted

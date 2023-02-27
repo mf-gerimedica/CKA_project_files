@@ -1,0 +1,19 @@
+---
+- name: Install some utilities
+  apt:
+    pkg:
+      - nano
+      - vim
+      - tmux
+      - htop
+      - ncdu
+      - pydf
+      - psmisc
+      - mosh
+      - fail2ban
+      - nload
+      - nmap
+      - ncat
+      - tcpdump
+      - wget
+    update_cache: yes

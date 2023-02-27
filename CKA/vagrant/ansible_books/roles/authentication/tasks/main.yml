@@ -1,0 +1,32 @@
+---
+- name: Create the user 'gerimedica'
+  user:
+    name: "gerimedica"
+    shell: /bin/bash
+    password: "{{ users.gerimedica.password }}"
+    groups: sudo
+    append: yes
+
+- name: Setup authorized_keys to root
+  ansible.posix.authorized_key:
+    user: "{{ item }}"
+    key: "{{ my_ssh_key }}"
+    state: present
+  loop: 
+    - root
+    - gerimedica
+
+- name: Install libpam-pwquality
+  package:
+    name: "libpam-modules"
+    state: present
+
+- name: Deploy sshd_config
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: '0644'
+  notify: systemctl restart sshd
+

@@ -1,0 +1,94 @@
+---
+- name: Add an apt signing key for Kubernetes
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+- name: Adding apt repository for Kubernetes
+  apt_repository:
+    repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+    filename: kubernetes.list
+
+- name: Install Kubernetes binaries
+  apt: 
+    name: "{{ packages }}"
+    state: present
+    update_cache: yes
+  vars:
+    packages:
+      - kubelet 
+      - kubeadm 
+      - kubectl
+
+- name: Download Helm installer script
+  get_url:
+    url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    dest: /tmp/get_helm.sh
+    mode: 0700
+
+- name: Run Helm installer script
+  command: bash /tmp/get_helm.sh
+
+- name: Configure node ip
+  lineinfile:
+    path: /etc/default/kubelet
+    line: KUBELET_EXTRA_ARGS=--node-ip={{ node_ip }}
+    create: yes
+
+- name: Restart kubelet
+  service:
+    name: kubelet
+    daemon_reload: yes
+    state: restarted
+
+- name: Remove containerd config.toml
+  file:
+    path: /etc/containerd/config.toml
+    state: absent
+  notify: systemctl restart containerd
+
+- name: restart containerd
+  meta: flush_handlers
+
+- name: Initialize the Kubernetes cluster using kubeadm
+  command: kubeadm init --apiserver-advertise-address "192.168.56.10" --apiserver-cert-extra-sans "192.168.56.10"  --node-name k8s-master --pod-network-cidr "192.168.0.0/16"
+#  command: kubeadm init --apiserver-advertise-address "192.168.56.10" --node-name k8s-master --pod-network-cidr "192.168.0.0/16"
+
+- name: Setup kubeconfig for vagrant user
+  command: "{{ item }}"
+  loop:
+    - mkdir -p /home/vagrant/.kube
+    - cp -i /etc/kubernetes/admin.conf /home/vagrant/.kube/config
+    - chown vagrant:vagrant /home/vagrant/.kube/config
+
+- name: Add Calico chart repo
+  kubernetes.core.helm_repository:
+    name: projectcalico
+    repo_url: "https://docs.tigera.io/calico/charts"
+
+- name: Deploy Calico chart
+  kubernetes.core.helm:
+    name: calico
+    chart_ref: projectcalico/tigera-operator
+    release_namespace: tigera-operator
+    create_namespace: true
+    chart_version: v3.25.0
+
+#- name: Install calico and tigera operator
+#  command: "{{ item }}"
+#  loop:
+#    - kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/tigera-operator.yaml
+#    - kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml
+#  become: true
+#  become_user: vagrant
+
+#- name: Generate join command
+#  become: yes
+#  become_user: vagrant
+#  command: kubeadm token create --print-join-command
+#  register: join_command
+
+#- name: Copy join command to local file
+#  become
+#  local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="./join-command"

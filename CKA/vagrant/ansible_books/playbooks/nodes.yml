@@ -1,0 +1,14 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Setup for every node of the kubernetes cluster to join control panel
+  hosts: all
+  roles:
+    - ../roles/authentication
+    - ../roles/host
+    - ../roles/utilities
+    - ../roles/kube_setup
+    - ../roles/kubeadm_join
+  become: yes
+  vars_files: 
+    - ../vars.yml
+

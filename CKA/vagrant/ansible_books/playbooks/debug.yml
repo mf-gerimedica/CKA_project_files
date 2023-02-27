@@ -1,0 +1,10 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Debug
+  hosts: k8s-master
+  roles:
+    - ../roles/debug
+  become: yes
+  vars_files: 
+    - ../vars.yml
+
